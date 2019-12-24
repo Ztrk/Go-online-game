@@ -12,7 +12,7 @@ class MainWindow(QtWidgets.QMainWindow):
 class Controller:
     def __init__(self):
         self.window = MainWindow(self)
-        self.board_view = BoardView(self.window.graphics_view)
+        self.board_view = BoardView(self.window.graphics_view, self)
         self.game_board = Board(19, self.board_view)
         self.window.show()
 
@@ -37,3 +37,6 @@ class Controller:
 
     def on_settings_button(self):
         self.game_board.move(2, 2, Field.BLACK)
+
+    def on_board_click(self, row, column):
+        self.game_board.move(row, column, Field.BLACK)
