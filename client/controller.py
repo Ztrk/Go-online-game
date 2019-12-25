@@ -1,5 +1,5 @@
 from PyQt5 import QtWidgets, uic
-from board import Board, Field
+from game import Game, Field
 from board_view import BoardView
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -13,7 +13,7 @@ class Controller:
     def __init__(self):
         self.window = MainWindow(self)
         self.board_view = BoardView(self.window.graphics_view, self)
-        self.game_board = Board(19, self.board_view)
+        self.game = Game(self.board_view)
         self.window.show()
 
     def on_button_click(self):
@@ -33,10 +33,10 @@ class Controller:
 
         dialog.exec_()
 
-        self.game_board.move(4, 14, Field.WHITE)
+        self.game.move(4, 14)
 
     def on_settings_button(self):
-        self.game_board.move(2, 2, Field.BLACK)
+        self.game.move(2, 2)
 
     def on_board_click(self, row, column):
-        self.game_board.move(row, column, Field.BLACK)
+        self.game.move(row, column)
