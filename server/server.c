@@ -23,28 +23,57 @@ struct thread_data_t {
     int epoll_fd;
 };
 
+struct client_data_t {
+    int fd;
+    char receive_buffer[BUFFER_SIZE];
+    char send_buffer[BUFFER_SIZE];
+};
+
+void send_data(int epoll_fd, struct client_data_t *client, const char *data) {
+
+    strcat(client->send_buffer, data);
+
+    struct epoll_event events;
+    events.events = EPOLLIN | EPOLLOUT;
+    events.data.ptr = client;
+
+    epoll_ctl(epoll_fd, EPOLL_CTL_MOD, client->fd, &events);
+}
+
 //funkcja opisującą zachowanie wątku - musi przyjmować argument typu (void *) i zwracać (void *)
 void *ThreadBehavior(void *t_data) {
     pthread_detach(pthread_self());
     struct thread_data_t *th_data = (struct thread_data_t*)t_data;
 
-    char buffer[BUFFER_SIZE];
     while (1) {
         struct epoll_event events;
         epoll_wait(th_data->epoll_fd, &events, 1, -1);
-        printf("Thread awoken, fd: %d\n", events.data.fd);
+
+        struct client_data_t *client_data = events.data.ptr;
+        printf("Thread awoken, fd: %d\n", client_data->fd);
         if (events.events & EPOLLIN) {
-            int read_bytes = recv(events.data.fd, buffer, BUFFER_SIZE - 1, MSG_DONTWAIT);
+            int read_bytes = recv(client_data->fd, client_data->receive_buffer, BUFFER_SIZE - 1, MSG_DONTWAIT);
             if (read_bytes < 0) {
                 fprintf(stderr, "Receive error, errno: %d\n", errno);
             }
             if (read_bytes == 0) {
-                printf("End of file, disconnecting fd: %d\n", events.data.fd);
-                epoll_ctl(th_data->epoll_fd, EPOLL_CTL_DEL, events.data.fd, NULL);
-                close(events.data.fd);
+                printf("End of file, disconnecting fd: %d\n", client_data->fd);
+                epoll_ctl(th_data->epoll_fd, EPOLL_CTL_DEL, client_data->fd, NULL);
+                close(client_data->fd);
+                free(client_data);
             }
-            buffer[read_bytes] = 0;
-            printf("%s", buffer);
+            client_data->receive_buffer[read_bytes] = 0;
+            send_data(th_data->epoll_fd, client_data, client_data->receive_buffer);
+            printf("%s\n", client_data->receive_buffer);
+        }
+        if (events.events & EPOLLOUT) {
+            printf("Sending data, fd: %d\n", client_data->fd);
+            int send_bytes = send(client_data->fd, client_data->send_buffer, strlen(client_data->send_buffer), MSG_DONTWAIT);
+
+            client_data->send_buffer[0] = 0;
+
+            events.events = EPOLLIN;
+            epoll_ctl(th_data->epoll_fd, EPOLL_CTL_MOD, client_data->fd, &events);
         }
     }
 
@@ -107,13 +136,13 @@ int main(int argc, char* argv[]) {
         }
         printf("Connection accepted, fd: %d\n", connection_socket_descriptor);
 
-        struct epoll_event event;
-        epoll_data_t epoll_data;
-        epoll_data.fd = connection_socket_descriptor;
+        struct client_data_t *client_data = malloc(sizeof(struct client_data_t));
+        client_data->fd = connection_socket_descriptor;
 
-        event.events = EPOLLIN;
-        event.data = epoll_data;
-        epoll_ctl(epoll_fd, EPOLL_CTL_ADD, connection_socket_descriptor, &event);
+        struct epoll_event events;
+        events.events = EPOLLIN;
+        events.data.ptr = client_data;
+        epoll_ctl(epoll_fd, EPOLL_CTL_ADD, connection_socket_descriptor, &events);
     }
 
     close(server_socket_descriptor);
