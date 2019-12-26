@@ -7,29 +7,19 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/epoll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+
+#include "server.h"
+
 #define SERVER_PORT 1234
 #define QUEUE_SIZE 5
-#define BUFFER_SIZE 100
 
-//struktura zawierająca dane, które zostaną przekazane do wątku
-struct thread_data_t {
-    int epoll_fd;
-};
-
-struct client_data_t {
-    int fd;
-    char receive_buffer[BUFFER_SIZE];
-    char send_buffer[BUFFER_SIZE];
-};
-
-void send_data(int epoll_fd, struct client_data_t *client, const char *data) {
+void send_data(int epoll_fd, Client *client, const char *data) {
 
     strcat(client->send_buffer, data);
 
@@ -43,13 +33,13 @@ void send_data(int epoll_fd, struct client_data_t *client, const char *data) {
 //funkcja opisującą zachowanie wątku - musi przyjmować argument typu (void *) i zwracać (void *)
 void *ThreadBehavior(void *t_data) {
     pthread_detach(pthread_self());
-    struct thread_data_t *th_data = (struct thread_data_t*)t_data;
+    Thread_data *th_data = (Thread_data*) t_data;
 
     while (1) {
         struct epoll_event events;
         epoll_wait(th_data->epoll_fd, &events, 1, -1);
 
-        struct client_data_t *client_data = events.data.ptr;
+        Client *client_data = events.data.ptr;
         printf("Thread awoken, fd: %d\n", client_data->fd);
         if (events.events & EPOLLIN) {
             int read_bytes = recv(client_data->fd, client_data->receive_buffer, BUFFER_SIZE - 1, MSG_DONTWAIT);
@@ -117,7 +107,7 @@ int main(int argc, char* argv[]) {
     }
 
     int create_result = 0;
-    struct thread_data_t thread_data;
+    Thread_data thread_data;
     thread_data.epoll_fd = epoll_fd;
     pthread_t thread1;
     create_result = pthread_create(&thread1, NULL, ThreadBehavior, &thread_data);
@@ -136,7 +126,7 @@ int main(int argc, char* argv[]) {
         }
         printf("Connection accepted, fd: %d\n", connection_socket_descriptor);
 
-        struct client_data_t *client_data = malloc(sizeof(struct client_data_t));
+        Client *client_data = malloc(sizeof(Client));
         client_data->fd = connection_socket_descriptor;
 
         struct epoll_event events;
