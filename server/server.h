@@ -5,10 +5,6 @@
 
 #define BUFFER_SIZE 100
 
-typedef struct Thread_data {
-    int epoll_fd;
-} Thread_data;
-
 typedef struct Client {
     int fd;
     char receive_buffer[BUFFER_SIZE];
@@ -16,7 +12,13 @@ typedef struct Client {
     struct Game *game;
 } Client;
 
-void handle_message(Client *client, int epoll_fd, const char *message);
+typedef struct Server {
+    int epoll_fd;
+    Client *waiting;
+} Server;
+
+void handle_message(Client *client, Server *server, const char *message);
 void send_data(Client *client, int epoll_fd, const char *data);
+void disconnect(Client *client, Server *server);
 
 #endif

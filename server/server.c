@@ -17,19 +17,35 @@
 #include "server.h"
 
 #define SERVER_PORT 1234
-#define QUEUE_SIZE 5
+#define LISTEN_QUEUE_SIZE 5
 
-void handle_message(Client *client, int epoll_fd, const char *message) {
-    if (strncmp(message, "MOVE", 4) == 0) {
+void handle_message(Client *client, Server *server, const char *message) {
+    if (client->game != NULL && strncmp(message, "MOVE", 4) == 0) {
         int row = -1, column = -1;
         sscanf(message, "MOVE %d %d", &row, &column);
         printf("row: %d, column %d\n", row, column);
         // TODO: check for correct coords
         move(client->game, row, column, 'B');
-        send_data(client, epoll_fd, "MOVE OK\n");
+        send_data(client, server->epoll_fd, "MOVE OK\n");
+    }
+    else if (client->game == NULL && client != server->waiting && strncmp(message, "NEW GAME", 8) == 0) {
+        if (server->waiting == NULL) {
+            server->waiting = client;
+        }
+        else {
+            Game *game = malloc(sizeof game);
+            // TODO: init game board
+            game->black_player = server->waiting;
+            game->white_player = client;
+            client->game = game;
+            server->waiting->game = game;
+            server->waiting = NULL;
+            send_data(game->black_player, server->epoll_fd, "GAME CREATED BLACK\n");
+            send_data(game->white_player, server->epoll_fd, "GAME CREATED WHITE\n");
+        }
     }
     else {
-        send_data(client, epoll_fd, "INVALID MESSAGE\n");
+        send_data(client, server->epoll_fd, "INVALID MESSAGE\n");
     }
 }
 
@@ -44,10 +60,29 @@ void send_data(Client *client, int epoll_fd, const char *data) {
     epoll_ctl(epoll_fd, EPOLL_CTL_MOD, client->fd, &events);
 }
 
+void disconnect(Client *client, Server *server) {
+    printf("Disconnecting, fd: %d\n", client->fd);
+    epoll_ctl(server->epoll_fd, EPOLL_CTL_DEL, client->fd, NULL);
+    close(client->fd);
+
+    // Free game object
+    if (client == client->game->white_player) {
+        client->game->white_player = NULL;
+    }
+    else {
+        client->game->black_player = NULL;
+    }
+    if (client->game->white_player == NULL && client->game->black_player == NULL) {
+        free(client->game);
+    }
+
+    free(client);
+}
+
 //funkcja opisującą zachowanie wątku - musi przyjmować argument typu (void *) i zwracać (void *)
 void *ThreadBehavior(void *t_data) {
     pthread_detach(pthread_self());
-    Thread_data *th_data = (Thread_data*) t_data;
+    Server *th_data = (Server*) t_data;
 
     while (1) {
         struct epoll_event events;
@@ -61,16 +96,12 @@ void *ThreadBehavior(void *t_data) {
                 fprintf(stderr, "Receive error, errno: %d\n", errno);
             }
             else if (read_bytes == 0) {
-                printf("End of file, disconnecting fd: %d\n", client->fd);
-                epoll_ctl(th_data->epoll_fd, EPOLL_CTL_DEL, client->fd, NULL);
-                close(client->fd);
-                free(client->game);
-                free(client);
+                disconnect(client, th_data);
             }
             else {
                 client->receive_buffer[read_bytes] = 0;
                 printf("%s\n", client->receive_buffer);
-                handle_message(client, th_data->epoll_fd, client->receive_buffer);
+                handle_message(client, th_data, client->receive_buffer);
             }
         }
         if (events.events & EPOLLOUT) {
@@ -111,7 +142,7 @@ int main(int argc, char* argv[]) {
         exit(1);
     }
 
-    int listen_result = listen(server_socket_descriptor, QUEUE_SIZE);
+    int listen_result = listen(server_socket_descriptor, LISTEN_QUEUE_SIZE);
     if (listen_result < 0) {
         fprintf(stderr, "%s: Błąd przy próbie ustawienia wielkości kolejki.\n", argv[0]);
         exit(1);
@@ -124,10 +155,11 @@ int main(int argc, char* argv[]) {
     }
 
     int create_result = 0;
-    Thread_data thread_data;
-    thread_data.epoll_fd = epoll_fd;
+    Server server_data;
+    server_data.epoll_fd = epoll_fd;
+    server_data.waiting = NULL;
     pthread_t thread1;
-    create_result = pthread_create(&thread1, NULL, ThreadBehavior, &thread_data);
+    create_result = pthread_create(&thread1, NULL, ThreadBehavior, &server_data);
     if (create_result) {
         fprintf(stderr, "%s: Błąd przy próbie utworzenia wątku, kod błędu: %d\n", argv[0], create_result);
         exit(1);
@@ -145,11 +177,7 @@ int main(int argc, char* argv[]) {
 
         Client *client = malloc(sizeof(Client));
         client->fd = connection_socket_descriptor;
-
-        Game *game = malloc(sizeof(Game));
-        game->black_player = client;
-        game->white_player = client;
-        client->game = game;
+        client->game = NULL;
 
         struct epoll_event events;
         events.events = EPOLLIN;
