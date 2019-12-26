@@ -19,7 +19,21 @@
 #define SERVER_PORT 1234
 #define QUEUE_SIZE 5
 
-void send_data(int epoll_fd, Client *client, const char *data) {
+void handle_message(Client *client, int epoll_fd, const char *message) {
+    if (strncmp(message, "MOVE", 4) == 0) {
+        int row = -1, column = -1;
+        sscanf(message, "MOVE %d %d", &row, &column);
+        printf("row: %d, column %d\n", row, column);
+        // TODO: check for correct coords
+        move(client->game, row, column, 'B');
+        send_data(client, epoll_fd, "MOVE OK\n");
+    }
+    else {
+        send_data(client, epoll_fd, "INVALID MESSAGE\n");
+    }
+}
+
+void send_data(Client *client, int epoll_fd, const char *data) {
 
     strcat(client->send_buffer, data);
 
@@ -39,31 +53,34 @@ void *ThreadBehavior(void *t_data) {
         struct epoll_event events;
         epoll_wait(th_data->epoll_fd, &events, 1, -1);
 
-        Client *client_data = events.data.ptr;
-        printf("Thread awoken, fd: %d\n", client_data->fd);
+        Client *client = events.data.ptr;
+        printf("Thread awoken, fd: %d\n", client->fd);
         if (events.events & EPOLLIN) {
-            int read_bytes = recv(client_data->fd, client_data->receive_buffer, BUFFER_SIZE - 1, MSG_DONTWAIT);
+            int read_bytes = recv(client->fd, client->receive_buffer, BUFFER_SIZE - 1, MSG_DONTWAIT);
             if (read_bytes < 0) {
                 fprintf(stderr, "Receive error, errno: %d\n", errno);
             }
-            if (read_bytes == 0) {
-                printf("End of file, disconnecting fd: %d\n", client_data->fd);
-                epoll_ctl(th_data->epoll_fd, EPOLL_CTL_DEL, client_data->fd, NULL);
-                close(client_data->fd);
-                free(client_data);
+            else if (read_bytes == 0) {
+                printf("End of file, disconnecting fd: %d\n", client->fd);
+                epoll_ctl(th_data->epoll_fd, EPOLL_CTL_DEL, client->fd, NULL);
+                close(client->fd);
+                free(client->game);
+                free(client);
             }
-            client_data->receive_buffer[read_bytes] = 0;
-            send_data(th_data->epoll_fd, client_data, client_data->receive_buffer);
-            printf("%s\n", client_data->receive_buffer);
+            else {
+                client->receive_buffer[read_bytes] = 0;
+                printf("%s\n", client->receive_buffer);
+                handle_message(client, th_data->epoll_fd, client->receive_buffer);
+            }
         }
         if (events.events & EPOLLOUT) {
-            printf("Sending data, fd: %d\n", client_data->fd);
-            int send_bytes = send(client_data->fd, client_data->send_buffer, strlen(client_data->send_buffer), MSG_DONTWAIT);
+            printf("Sending data, fd: %d\n", client->fd);
+            int send_bytes = send(client->fd, client->send_buffer, strlen(client->send_buffer), MSG_DONTWAIT);
 
-            client_data->send_buffer[0] = 0;
+            client->send_buffer[0] = 0;
 
             events.events = EPOLLIN;
-            epoll_ctl(th_data->epoll_fd, EPOLL_CTL_MOD, client_data->fd, &events);
+            epoll_ctl(th_data->epoll_fd, EPOLL_CTL_MOD, client->fd, &events);
         }
     }
 
@@ -126,12 +143,17 @@ int main(int argc, char* argv[]) {
         }
         printf("Connection accepted, fd: %d\n", connection_socket_descriptor);
 
-        Client *client_data = malloc(sizeof(Client));
-        client_data->fd = connection_socket_descriptor;
+        Client *client = malloc(sizeof(Client));
+        client->fd = connection_socket_descriptor;
+
+        Game *game = malloc(sizeof(Game));
+        game->black_player = client;
+        game->white_player = client;
+        client->game = game;
 
         struct epoll_event events;
         events.events = EPOLLIN;
-        events.data.ptr = client_data;
+        events.data.ptr = client;
         epoll_ctl(epoll_fd, EPOLL_CTL_ADD, connection_socket_descriptor, &events);
     }
 
