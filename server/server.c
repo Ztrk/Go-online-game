@@ -24,9 +24,27 @@ void handle_message(Client *client, Server *server, const char *message) {
         int row = -1, column = -1;
         sscanf(message, "MOVE %d %d", &row, &column);
         printf("row: %d, column %d\n", row, column);
-        // TODO: check for correct coords
-        move(client->game, row, column, 'B');
-        send_data(client, server->epoll_fd, "MOVE OK\n");
+        if (is_valid_move(client->game, row, column)) {
+            if (client == client->game->black_player) {
+                move(client->game, row, column, BLACK);
+            }
+            else {
+                move(client->game, row, column, WHITE);
+            }
+            send_data(client, server->epoll_fd, "MOVE OK\n");
+
+            char response[100];
+            sprintf(response, "MOVE %d %d\n", row, column);
+            if (client->game->white_player == client) {
+                send_data(client->game->black_player, server->epoll_fd, response);
+            }
+            else {
+                send_data(client->game->white_player, server->epoll_fd, response);
+            }
+        }
+        else {
+            send_data(client, server->epoll_fd, "MOVE INVALID\n");
+        }
     }
     else if (client->game == NULL && client != server->waiting && strncmp(message, "NEW GAME", 8) == 0) {
         if (server->waiting == NULL) {
