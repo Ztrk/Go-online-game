@@ -65,15 +65,21 @@ void disconnect(Client *client, Server *server) {
     epoll_ctl(server->epoll_fd, EPOLL_CTL_DEL, client->fd, NULL);
     close(client->fd);
 
+    if (server->waiting == client) {
+        server->waiting = NULL;
+    }
+
     // Free game object
-    if (client == client->game->white_player) {
-        client->game->white_player = NULL;
-    }
-    else {
-        client->game->black_player = NULL;
-    }
-    if (client->game->white_player == NULL && client->game->black_player == NULL) {
-        free(client->game);
+    if (client->game != NULL) {
+        if (client == client->game->white_player) {
+            client->game->white_player = NULL;
+        }
+        else {
+            client->game->black_player = NULL;
+        }
+        if (client->game->white_player == NULL && client->game->black_player == NULL) {
+            free(client->game);
+        }
     }
 
     free(client);
