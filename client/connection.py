@@ -1,5 +1,6 @@
 import re
 from PyQt5 import QtCore, QtNetwork
+import game
 
 class Connection:
     def __init__(self, hostname, port, client):
@@ -16,6 +17,11 @@ class Connection:
             column = int(match.group(2))
             print("move", row, column)
             self.client.game.move_enemy(row, column)
+        elif message.startswith("GAME CREATED"):
+            if message.endswith("BLACK\n"):
+                self.client.game.player = game.Field.BLACK
+            else:
+                self.client.game.player = game.Field.WHITE
         elif message == "INVALID MESSAGE\n":
             print("Error: client sent invalid message")
         else:
