@@ -1,5 +1,5 @@
 from PyQt5 import QtWidgets, uic
-from game import Game
+from game import Client
 from board_view import BoardView
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -13,14 +13,14 @@ class Controller:
     def __init__(self):
         self.window = MainWindow(self)
         self.board_view = BoardView(self.window.graphics_view, self)
-        self.game = Game(self.board_view)
+        self.client = Client(self.board_view)
         self.window.show()
 
     def on_new_game_button(self):
-        self.game.new_game()
+        self.client.new_game()
 
     def on_settings_button(self):
-        self.game.move(2, 2)
+        self.client.move(2, 2)
 
     def on_board_click(self, row, column):
-        self.game.move(row, column)
+        self.client.move(row, column)

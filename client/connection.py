@@ -1,14 +1,13 @@
 import re
 from PyQt5 import QtCore, QtNetwork
-import game
 
 class Connection:
-    def __init__(self, hostname, port, game):
+    def __init__(self, hostname, port, client):
         print("Connecting to", hostname, "at port", port)
         self.tcp_socket = QtNetwork.QTcpSocket()
         self.tcp_socket.readyRead.connect(self.receive)
         self.tcp_socket.connectToHost(hostname, port)
-        self.game = game
+        self.client = client
 
     def handle_message(self, message):
         match = re.match(r"^MOVE (\d+) (\d+)", message)
@@ -16,7 +15,7 @@ class Connection:
             row = int(match.group(1))
             column = int(match.group(2))
             print("move", row, column)
-            self.game.board.move(row, column, game.Field.WHITE)
+            self.client.game.move_enemy(row, column)
         elif message == "INVALID MESSAGE\n":
             print("Error: client sent invalid message")
         else:
