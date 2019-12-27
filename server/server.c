@@ -52,7 +52,7 @@ void handle_message(Client *client, Server *server, const char *message) {
         }
         else {
             Game *game = malloc(sizeof game);
-            // TODO: init game board
+            init_board(game);
             game->black_player = server->waiting;
             game->white_player = client;
             client->game = game;
