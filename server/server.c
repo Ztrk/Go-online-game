@@ -23,7 +23,6 @@ void handle_message(Client *client, Server *server, const char *message) {
     if (client->game != NULL && strncmp(message, "MOVE", 4) == 0) {
         int row = -1, column = -1;
         sscanf(message, "MOVE %d %d", &row, &column);
-        printf("row: %d, column %d\n", row, column);
         if (is_valid_move(client->game, row, column, client)) {
             move(client->game, row, column);
             send_data(client, server->epoll_fd, "MOVE OK\n");
@@ -82,18 +81,10 @@ void disconnect(Client *client, Server *server) {
     if (server->waiting == client) {
         server->waiting = NULL;
     }
-
-    // Free game object
-    if (client->game != NULL) {
-        if (client == client->game->white_player) {
-            client->game->white_player = NULL;
-        }
-        else {
-            client->game->black_player = NULL;
-        }
-        if (client->game->white_player == NULL && client->game->black_player == NULL) {
-            free(client->game);
-        }
+    else if (client->game != NULL) {
+        send_data(other_player(client), server->epoll_fd, "WIN\n");
+        other_player(client)->game = NULL;
+        free(client->game);
     }
 
     free(client);
@@ -126,6 +117,7 @@ void *ThreadBehavior(void *t_data) {
         }
         if (events.events & EPOLLOUT) {
             printf("Sending data, fd: %d\n", client->fd);
+            printf("%s\n", client->send_buffer);
             int send_bytes = send(client->fd, client->send_buffer, strlen(client->send_buffer), MSG_DONTWAIT);
 
             client->send_buffer[0] = 0;
