@@ -24,23 +24,13 @@ void handle_message(Client *client, Server *server, const char *message) {
         int row = -1, column = -1;
         sscanf(message, "MOVE %d %d", &row, &column);
         printf("row: %d, column %d\n", row, column);
-        if (is_valid_move(client->game, row, column)) {
-            if (client == client->game->black_player) {
-                move(client->game, row, column, BLACK);
-            }
-            else {
-                move(client->game, row, column, WHITE);
-            }
+        if (is_valid_move(client->game, row, column, client)) {
+            move(client->game, row, column);
             send_data(client, server->epoll_fd, "MOVE OK\n");
 
             char response[100];
             sprintf(response, "MOVE %d %d\n", row, column);
-            if (client->game->white_player == client) {
-                send_data(client->game->black_player, server->epoll_fd, response);
-            }
-            else {
-                send_data(client->game->white_player, server->epoll_fd, response);
-            }
+            send_data(other_player(client), server->epoll_fd, response);
         }
         else {
             send_data(client, server->epoll_fd, "MOVE INVALID\n");
@@ -51,20 +41,26 @@ void handle_message(Client *client, Server *server, const char *message) {
             server->waiting = client;
         }
         else {
-            Game *game = malloc(sizeof game);
-            init_board(game);
-            game->black_player = server->waiting;
-            game->white_player = client;
-            client->game = game;
-            server->waiting->game = game;
-            server->waiting = NULL;
-            send_data(game->black_player, server->epoll_fd, "GAME CREATED BLACK\n");
-            send_data(game->white_player, server->epoll_fd, "GAME CREATED WHITE\n");
+            create_game(server, client, server->waiting);
         }
     }
     else {
         send_data(client, server->epoll_fd, "INVALID MESSAGE\n");
     }
+}
+
+void create_game(Server *server, Client *white, Client *black) {
+    Game *game = malloc(sizeof game);
+    init_board(game);
+    game->black_player = black;
+    game->white_player = white;
+    game->next_player = black;
+    black->game = game;
+    white->game = game;
+
+    server->waiting = NULL;
+    send_data(game->black_player, server->epoll_fd, "GAME CREATED BLACK\n");
+    send_data(game->white_player, server->epoll_fd, "GAME CREATED WHITE\n");
 }
 
 void send_data(Client *client, int epoll_fd, const char *data) {

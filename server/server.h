@@ -17,6 +17,7 @@ typedef struct Server {
     Client *waiting;
 } Server;
 
+void create_game(Server *server, Client *white, Client *black);
 void handle_message(Client *client, Server *server, const char *message);
 void send_data(Client *client, int epoll_fd, const char *data);
 void disconnect(Client *client, Server *server);
