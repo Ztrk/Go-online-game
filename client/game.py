@@ -20,7 +20,7 @@ class Client:
                 print("move", row, column)
                 self.game.move_enemy(row, column)
             elif message.endswith("OK\n"):
-                self.game.next_move = (-1, -1)
+                self.game.move_player(*self.game.next_move)
             elif message.endswith("INVALID\n"):
                 pass
             else:
@@ -64,12 +64,8 @@ class Game:
         self.view.update(self)
 
     def set_next_move(self, row, column):
-        if self.next_move[0] >= 0:
-            self.board[self.next_move[0]][self.next_move[1]] = Field.NONE
-            self.view.update(self)
         if row >= 0 and self.board[row][column] == Field.NONE:
             self.next_move = (row, column)
-            self.move_player(row, column)
         else:
             self.next_move = (-1, -1)
 
