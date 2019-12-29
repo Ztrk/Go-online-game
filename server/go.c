@@ -27,13 +27,29 @@ bool is_valid_move(Game *game, int row, int column, struct Client *player) {
     // Check if move is a suicide
     set_board(game, row, column, player);
     if (compute_liberties(game, row, column) == 0) {
-        printf("Suicide move %d %d\n", row, column);
-        // TODO: move could kill enemy group
-        // for n in neighbours
-        //      if n is enemy and compute_liberties(n) == 0
-        //          move is ok
-        game->board[row][column] = NONE;
-        return false;
+        // Check if move captures enemy group
+        bool is_capturing_move = false;
+        enum Field enemy_color = NONE;
+        if (player == game->black_player)
+            enemy_color = WHITE;
+        else
+            enemy_color = BLACK;
+
+        for (int i = 0; i < 4; ++i) {
+            int next_row = row + neighbours[i][0];
+            int next_column = column + neighbours[i][1];
+            if (valid_coordinates(next_row, next_column)
+                && game->board[next_row][next_column] == enemy_color
+                && compute_liberties(game, next_row, next_column) == 0) {
+                    is_capturing_move = true;
+                    break;
+            }
+        }
+        if (!is_capturing_move) {
+            game->board[row][column] = NONE;
+            printf("Suicide move %d %d\n", row, column);
+            return false;
+        }
     }
     game->board[row][column] = NONE;
     return true;
@@ -67,9 +83,7 @@ int compute_liberties(Game *game, int row, int column) {
     for (int i = 0; i < BOARD_SIZE; ++i) {
         for (int j = 0; j < BOARD_SIZE; ++j) {
             new_board[i][j] = game->board[i][j];
-            printf("%d ", new_board[i][j]);
         }
-        printf("\n");
     }
     int result = compute_liberties_util(new_board, row, column);
     printf("Liberties: %d\n", result);
