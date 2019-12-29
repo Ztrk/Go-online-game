@@ -6,6 +6,7 @@
 #include "server.h"
 
 #define BOARD_SIZE 19
+#define NEIGHBOURS_NUM 4
 
 enum Field { NONE, BLACK, WHITE };
 
@@ -24,7 +25,9 @@ bool is_valid_move(Game *game, int row, int column, struct Client *player);
 bool valid_coordinates(int row, int column);
 void init_board(Game *game);
 struct Client *other_player(struct Client *player);
+enum Field player_color(struct Client *player);
 int compute_liberties(Game *game, int row, int column);
 int compute_liberties_util(enum Field board[BOARD_SIZE][BOARD_SIZE], int row, int column);
+void capture_group(Game *game, int row, int column);
 
 #endif

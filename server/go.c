@@ -5,8 +5,25 @@ const int neighbours[4][2] = {{1, 0}, {0, -1}, {-1, 0}, {0, 1}};
 
 void move(Game *game, int row, int column) {
     set_board(game, row, column, game->next_player);
-    // TODO: kill enemy groups
     game->next_player = other_player(game->next_player);
+
+    // Capture enemy groups
+    enum Field enemy_color = player_color(game->next_player);
+    for (int i = 0; i < NEIGHBOURS_NUM; ++i) {
+        int next_row = row + neighbours[i][0];
+        int next_column = column + neighbours[i][1];
+        if (valid_coordinates(next_row, next_column)
+            && game->board[next_row][next_column] == enemy_color
+            && compute_liberties(game, next_row, next_column) == 0) {
+                capture_group(game, next_row, next_column);
+        }
+    }
+    for (int i = 0; i < BOARD_SIZE; ++i) {
+        for (int j = 0; j < BOARD_SIZE; ++j) {
+            printf("%d ", game->board[i][j]);
+        }
+        printf("\n");
+    }
 }
 
 void set_board(Game *game, int row, int column, struct Client *player) {
@@ -78,6 +95,13 @@ struct Client *other_player(struct Client *player) {
         return player->game->black_player;
 }
 
+enum Field player_color(struct Client *player) {
+    if (player == player->game->black_player)
+        return BLACK;
+    else
+        return WHITE;
+}
+
 int compute_liberties(Game *game, int row, int column) {
     enum Field new_board[BOARD_SIZE][BOARD_SIZE];
     for (int i = 0; i < BOARD_SIZE; ++i) {
@@ -110,4 +134,17 @@ int compute_liberties_util(enum Field board[BOARD_SIZE][BOARD_SIZE], int row, in
         }
     }
     return result;
+}
+
+void capture_group(Game *game, int row, int column) {
+    enum Field color = game->board[row][column];
+    game->board[row][column] = NONE;
+    for (int i = 0; i < NEIGHBOURS_NUM; ++i) {
+        int next_row = row + neighbours[i][0];
+        int next_column = column + neighbours[i][1];
+        if (valid_coordinates(next_row, next_column)
+            && game->board[next_row][next_column] == color) {
+                capture_group(game, next_row, next_column);
+        }
+    }
 }
