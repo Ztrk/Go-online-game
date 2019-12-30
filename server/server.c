@@ -24,7 +24,8 @@ void handle_message(Client *client, Server *server, const char *message) {
         int row = -1, column = -1;
         sscanf(message, "MOVE %d %d", &row, &column);
         if (is_valid_move(client->game, row, column, client)) {
-            move(client->game, row, column);
+            Move *captured_stones = move(client->game, row, column);
+            free(captured_stones);
             send_data(client, server->epoll_fd, "MOVE OK\n");
 
             char response[100];
@@ -49,7 +50,7 @@ void handle_message(Client *client, Server *server, const char *message) {
 }
 
 void create_game(Server *server, Client *white, Client *black) {
-    Game *game = malloc(sizeof game);
+    Game *game = malloc(sizeof *game);
     init_board(game);
     game->black_player = black;
     game->white_player = white;

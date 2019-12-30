@@ -1,29 +1,35 @@
 #include "go.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 const int neighbours[4][2] = {{1, 0}, {0, -1}, {-1, 0}, {0, 1}};
 
-void move(Game *game, int row, int column) {
+Move *move(Game *game, int row, int column) {
     set_board(game, row, column, game->next_player);
     game->next_player = other_player(game->next_player);
 
     // Capture enemy groups
     enum Field enemy_color = player_color(game->next_player);
+    Move *captured_stones = malloc(BOARD_SIZE * BOARD_SIZE * sizeof(Move));
+    captured_stones[0][0] = -1;
+    captured_stones[0][1] = -1;
+
     for (int i = 0; i < NEIGHBOURS_NUM; ++i) {
         int next_row = row + neighbours[i][0];
         int next_column = column + neighbours[i][1];
         if (valid_coordinates(next_row, next_column)
             && game->board[next_row][next_column] == enemy_color
             && compute_liberties(game, next_row, next_column) == 0) {
-                capture_group(game, next_row, next_column);
+                capture_group(game, next_row, next_column, captured_stones);
         }
     }
-    for (int i = 0; i < BOARD_SIZE; ++i) {
-        for (int j = 0; j < BOARD_SIZE; ++j) {
-            printf("%d ", game->board[i][j]);
-        }
-        printf("\n");
+
+    printf("Captured: ");
+    for (int i = 0; captured_stones[i][0] != -1; ++i) {
+        printf("%d %d, ", captured_stones[i][0], captured_stones[i][1]);
     }
+    printf("\n");
+    return captured_stones;
 }
 
 void set_board(Game *game, int row, int column, struct Client *player) {
@@ -136,15 +142,26 @@ int compute_liberties_util(enum Field board[BOARD_SIZE][BOARD_SIZE], int row, in
     return result;
 }
 
-void capture_group(Game *game, int row, int column) {
+void capture_group(Game *game, int row, int column, Move *captured_stones) {
     enum Field color = game->board[row][column];
     game->board[row][column] = NONE;
+
+    // Add stone to captured stones - O(n^2)
+    int j = 0;
+    while (captured_stones[j][0] != -1) {
+        ++j;
+    }
+    captured_stones[j][0] = row;
+    captured_stones[j][1] = column;
+    captured_stones[j + 1][0] = -1;
+    captured_stones[j + 1][1] = -1;
+
     for (int i = 0; i < NEIGHBOURS_NUM; ++i) {
         int next_row = row + neighbours[i][0];
         int next_column = column + neighbours[i][1];
         if (valid_coordinates(next_row, next_column)
             && game->board[next_row][next_column] == color) {
-                capture_group(game, next_row, next_column);
+                capture_group(game, next_row, next_column, captured_stones);
         }
     }
 }
