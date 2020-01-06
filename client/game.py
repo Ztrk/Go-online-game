@@ -19,12 +19,25 @@ class Client:
                 column = int(match.group(2))
                 print("move", row, column)
                 self.game.move_enemy(row, column)
-            elif message.endswith("OK\n"):
+            elif message.startswith("MOVE OK"):
                 self.game.move_player(*self.game.next_move)
             elif message.endswith("INVALID\n"):
-                pass
+                print("Error: Move invalid")
+                return
             else:
-                print("Error: Invalid move message")
+                print("Error: Move message not recognized")
+                return
+
+            captured_match = re.search(r"CAPTURED ((\d+) (\d+)(?:, (\d+) (\d+))*)$", message)
+            if captured_match is not None:
+                print("Group captured", captured_match.group(1))
+                stones = captured_match.group(1).split(',')
+                for stone in stones:
+                    row, column = stone.split()
+                    row = int(row)
+                    column = int(column)
+                    self.game.do_move(row, column, Field.NONE)
+                self.view.update(self.game)
         elif message.startswith("GAME CREATED"):
             if message.endswith("BLACK\n"):
                 self.game.player = Field.BLACK
@@ -33,7 +46,7 @@ class Client:
         elif message == "INVALID MESSAGE\n":
             print("Error: client sent invalid message")
         else:
-            print("Error: Invalid message")
+            print("Error: Message not recognized")
 
     def move(self, row, column):
         self.game.set_next_move(row, column)
@@ -62,6 +75,9 @@ class Game:
     def move_enemy(self, row, column):
         self.board[row][column] = self.player.other()
         self.view.update(self)
+
+    def do_move(self, row, column, new_color):
+        self.board[row][column] = new_color
 
     def set_next_move(self, row, column):
         if row >= 0 and self.board[row][column] == Field.NONE:
