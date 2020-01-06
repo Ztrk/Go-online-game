@@ -3,7 +3,7 @@
 
 #include "go.h"
 
-#define BUFFER_SIZE 100
+#define BUFFER_SIZE 4096
 
 typedef struct Client {
     int fd;

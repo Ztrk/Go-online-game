@@ -25,11 +25,24 @@ void handle_message(Client *client, Server *server, const char *message) {
         sscanf(message, "MOVE %d %d", &row, &column);
         if (is_valid_move(client->game, row, column, client)) {
             Move *captured_stones = move(client->game, row, column);
-            free(captured_stones);
-            send_data(client, server->epoll_fd, "MOVE OK\n");
 
-            char response[100];
-            sprintf(response, "MOVE %d %d\n", row, column);
+            char captured_field[2600];
+            captured_field[0] = 0;
+            if (captured_stones[0][0] != -1) {
+                int length = sprintf(captured_field, " CAPTURED %d %d", captured_stones[0][0], captured_stones[0][1]);
+                for (int i = 1; captured_stones[i][0] != -1; ++i) {
+                    length += sprintf(&captured_field[length], ", %d %d", captured_stones[i][0], captured_stones[i][1]);
+                }
+            }
+            free(captured_stones);
+
+            char player_response[2620] = "MOVE OK";
+            strcat(player_response, captured_field);
+            strcat(player_response, "\n");
+            send_data(client, server->epoll_fd, player_response);
+
+            char response[2620];
+            sprintf(response, "MOVE %d %d%s\n", row, column, captured_field);
             send_data(other_player(client), server->epoll_fd, response);
         }
         else {
