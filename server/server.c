@@ -24,26 +24,7 @@ void handle_message(Client *client, Server *server, const char *message) {
         int row = -1, column = -1;
         sscanf(message, "MOVE %d %d", &row, &column);
         if (is_valid_move(client->game, row, column, client)) {
-            Move *captured_stones = move(client->game, row, column);
-
-            char captured_field[2600];
-            captured_field[0] = 0;
-            if (captured_stones[0][0] != -1) {
-                int length = sprintf(captured_field, " CAPTURED %d %d", captured_stones[0][0], captured_stones[0][1]);
-                for (int i = 1; captured_stones[i][0] != -1; ++i) {
-                    length += sprintf(&captured_field[length], ", %d %d", captured_stones[i][0], captured_stones[i][1]);
-                }
-            }
-            free(captured_stones);
-
-            char player_response[2620] = "MOVE OK";
-            strcat(player_response, captured_field);
-            strcat(player_response, "\n");
-            send_data(client, server->epoll_fd, player_response);
-
-            char response[2620];
-            sprintf(response, "MOVE %d %d%s\n", row, column, captured_field);
-            send_data(other_player(client), server->epoll_fd, response);
+            do_move(client, server, row, column);
         }
         else {
             send_data(client, server->epoll_fd, "MOVE INVALID\n");
@@ -60,6 +41,32 @@ void handle_message(Client *client, Server *server, const char *message) {
     else {
         send_data(client, server->epoll_fd, "INVALID MESSAGE\n");
     }
+}
+
+void do_move(Client *client, Server *server, int row, int column) {
+    Move *captured_stones = move(client->game, row, column);
+
+    // Convert captured stones to string
+    char captured_field[2600];
+    captured_field[0] = 0;
+    if (captured_stones[0][0] != -1) {
+        int length = sprintf(captured_field, " CAPTURED %d %d", captured_stones[0][0], captured_stones[0][1]);
+        for (int i = 1; captured_stones[i][0] != -1; ++i) {
+            length += sprintf(&captured_field[length], ", %d %d", captured_stones[i][0], captured_stones[i][1]);
+        }
+    }
+    free(captured_stones);
+
+    // Send response to current player
+    char player_response[2620] = "MOVE OK";
+    strcat(player_response, captured_field);
+    strcat(player_response, "\n");
+    send_data(client, server->epoll_fd, player_response);
+
+    // Send response to next player
+    char response[2620];
+    sprintf(response, "MOVE %d %d%s\n", row, column, captured_field);
+    send_data(other_player(client), server->epoll_fd, response);
 }
 
 void create_game(Server *server, Client *white, Client *black) {
@@ -105,13 +112,13 @@ void disconnect(Client *client, Server *server) {
 }
 
 //funkcja opisującą zachowanie wątku - musi przyjmować argument typu (void *) i zwracać (void *)
-void *ThreadBehavior(void *t_data) {
+void *event_loop(void *thread_data) {
     pthread_detach(pthread_self());
-    Server *th_data = (Server*) t_data;
+    Server *server = (Server*) thread_data;
 
     while (1) {
         struct epoll_event events;
-        epoll_wait(th_data->epoll_fd, &events, 1, -1);
+        epoll_wait(server->epoll_fd, &events, 1, -1);
 
         Client *client = events.data.ptr;
         printf("Thread awoken, fd: %d\n", client->fd);
@@ -121,12 +128,12 @@ void *ThreadBehavior(void *t_data) {
                 fprintf(stderr, "Receive error, errno: %d\n", errno);
             }
             else if (read_bytes == 0) {
-                disconnect(client, th_data);
+                disconnect(client, server);
             }
             else {
                 client->receive_buffer[read_bytes] = 0;
                 printf("%s\n", client->receive_buffer);
-                handle_message(client, th_data, client->receive_buffer);
+                handle_message(client, server, client->receive_buffer);
             }
         }
         if (events.events & EPOLLOUT) {
@@ -137,13 +144,12 @@ void *ThreadBehavior(void *t_data) {
             client->send_buffer[0] = 0;
 
             events.events = EPOLLIN;
-            epoll_ctl(th_data->epoll_fd, EPOLL_CTL_MOD, client->fd, &events);
+            epoll_ctl(server->epoll_fd, EPOLL_CTL_MOD, client->fd, &events);
         }
     }
 
     pthread_exit(NULL);
 }
-
 
 int main(int argc, char* argv[]) {
     char reuse_addr_val = 1;
@@ -185,7 +191,7 @@ int main(int argc, char* argv[]) {
     server_data.epoll_fd = epoll_fd;
     server_data.waiting = NULL;
     pthread_t thread1;
-    create_result = pthread_create(&thread1, NULL, ThreadBehavior, &server_data);
+    create_result = pthread_create(&thread1, NULL, event_loop, &server_data);
     if (create_result) {
         fprintf(stderr, "%s: Błąd przy próbie utworzenia wątku, kod błędu: %d\n", argv[0], create_result);
         exit(1);
