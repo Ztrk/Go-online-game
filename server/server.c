@@ -20,6 +20,16 @@
 
 void handle_message(Client *client, Server *server, const char *message) {
     if (client->game != NULL && strncmp(message, "MOVE", 4) == 0) {
+        if (strncmp(message, "MOVE PASS", 9) == 0) {
+            if (pass(client->game, client)) {
+                send_data(client, server->epoll_fd, "MOVE OK\n");
+                send_data(other_player(client), server->epoll_fd, "MOVE PASS\n");
+            }
+            else {
+                send_data(client, server->epoll_fd, "MOVE INVALID\n");
+            }
+            return;
+        }
         int row = -1, column = -1;
         sscanf(message, "MOVE %d %d", &row, &column);
         if (is_valid_move(client->game, row, column, client)) {

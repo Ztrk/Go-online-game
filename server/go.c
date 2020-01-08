@@ -32,6 +32,14 @@ Move *move(Game *game, int row, int column) {
     return captured_stones;
 }
 
+bool pass(Game *game, struct Client *player) {
+    if (player == game->next_player) {
+        game->next_player = other_player(player);
+        return true;
+    }
+    return false;
+}
+
 void set_board(Game *game, int row, int column, struct Client *player) {
     if (player == game->black_player)
         game->board[row][column] = BLACK;

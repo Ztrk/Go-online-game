@@ -21,6 +21,7 @@ typedef struct Game {
 } Game;
 
 Move *move(Game *game, int row, int column);
+bool pass(Game *game, struct Client *player);
 void set_board(Game *game, int row, int column, struct Client *client);
 bool is_valid_move(Game *game, int row, int column, struct Client *player);
 bool valid_coordinates(int row, int column);
