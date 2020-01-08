@@ -16,7 +16,6 @@
 
 #include "server.h"
 
-#define SERVER_PORT 1234
 #define LISTEN_QUEUE_SIZE 5
 
 void handle_message(Client *client, Server *server, const char *message) {
@@ -172,6 +171,21 @@ void *event_loop(void *thread_data) {
 }
 
 int main(int argc, char* argv[]) {
+    int server_port = 1234;
+    if (argc > 1) {
+        if (strlen(argv[1]) <= 5) {
+            server_port = atoi(argv[1]);
+            if (server_port <= 0 || server_port > 65535) {
+                fprintf(stderr, "%s: Port number should be an integer between 1 and 65535", argv[0]);
+                exit(1);
+            }
+        }
+        else {
+            fprintf(stderr, "%s: Port number should be an integer between 1 and 65535", argv[0]);
+            exit(1);
+        }
+    }
+
     char reuse_addr_val = 1;
     struct sockaddr_in server_address;
 
@@ -179,7 +193,7 @@ int main(int argc, char* argv[]) {
     memset(&server_address, 0, sizeof(struct sockaddr));
     server_address.sin_family = AF_INET;
     server_address.sin_addr.s_addr = htonl(INADDR_ANY);
-    server_address.sin_port = htons(SERVER_PORT);
+    server_address.sin_port = htons(server_port);
 
     int server_socket_descriptor = socket(AF_INET, SOCK_STREAM, 0);
     if (server_socket_descriptor < 0) {
