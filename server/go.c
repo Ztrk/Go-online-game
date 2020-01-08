@@ -7,6 +7,7 @@ const int neighbours[4][2] = {{1, 0}, {0, -1}, {-1, 0}, {0, 1}};
 Move *move(Game *game, int row, int column) {
     set_board(game, row, column, game->next_player);
     game->next_player = other_player(game->next_player);
+    game->passes = 0;
 
     // Capture enemy groups
     enum Field enemy_color = player_color(game->next_player);
@@ -35,6 +36,7 @@ Move *move(Game *game, int row, int column) {
 bool pass(Game *game, struct Client *player) {
     if (player == game->next_player) {
         game->next_player = other_player(player);
+        ++game->passes;
         return true;
     }
     return false;
@@ -92,6 +94,14 @@ bool valid_coordinates(int row, int column) {
     if (column < 0 || column >= BOARD_SIZE)
         return false;
     return true;
+}
+
+void init_game(Game *game, struct Client *black, struct Client *white) {
+    game->black_player = black;
+    game->white_player = white;
+    game->next_player = black;
+    game->passes = 0;
+    init_board(game);
 }
 
 void init_board(Game *game) {
@@ -172,4 +182,11 @@ void capture_group(Game *game, int row, int column, Move *captured_stones) {
                 capture_group(game, next_row, next_column, captured_stones);
         }
     }
+}
+
+struct Client *get_winner(Game *game) {
+    if (game->passes >= 2) {
+        return game->next_player;
+    }
+    return NULL;
 }

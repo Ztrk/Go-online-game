@@ -24,6 +24,10 @@ void handle_message(Client *client, Server *server, const char *message) {
             if (pass(client->game, client)) {
                 send_data(client, server->epoll_fd, "MOVE OK\n");
                 send_data(other_player(client), server->epoll_fd, "MOVE PASS\n");
+                Client *winner = get_winner(client->game);
+                if (winner != NULL) {
+                    end_game(server, winner);
+                }
             }
             else {
                 send_data(client, server->epoll_fd, "MOVE INVALID\n");
@@ -44,7 +48,7 @@ void handle_message(Client *client, Server *server, const char *message) {
             server->waiting = client;
         }
         else {
-            create_game(server, client, server->waiting);
+            create_game(server, server->waiting, client);
         }
     }
     else {
@@ -78,12 +82,18 @@ void do_move(Client *client, Server *server, int row, int column) {
     send_data(other_player(client), server->epoll_fd, response);
 }
 
-void create_game(Server *server, Client *white, Client *black) {
+void end_game(Server *server, Client *winner) {
+    Client *loser = other_player(winner);
+    send_data(winner, server->epoll_fd, "WIN\n");
+    send_data(loser, server->epoll_fd, "LOSE\n");
+    free(winner->game);
+    winner->game = NULL;
+    loser->game = NULL;
+}
+
+void create_game(Server *server, Client *black, Client *white) {
     Game *game = malloc(sizeof *game);
-    init_board(game);
-    game->black_player = black;
-    game->white_player = white;
-    game->next_player = black;
+    init_game(game, black, white);
     black->game = game;
     white->game = game;
 
@@ -112,9 +122,7 @@ void disconnect(Client *client, Server *server) {
         server->waiting = NULL;
     }
     else if (client->game != NULL) {
-        send_data(other_player(client), server->epoll_fd, "WIN\n");
-        other_player(client)->game = NULL;
-        free(client->game);
+        end_game(server, other_player(client));
     }
 
     free(client);

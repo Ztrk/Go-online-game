@@ -18,7 +18,8 @@ typedef struct Server {
 } Server;
 
 void do_move(Client *client, Server *server, int row, int column);
-void create_game(Server *server, Client *white, Client *black);
+void create_game(Server *server, Client *black, Client *white);
+void end_game(Server *server, Client *winner);
 void handle_message(Client *client, Server *server, const char *message);
 void send_data(Client *client, int epoll_fd, const char *data);
 void disconnect(Client *client, Server *server);
