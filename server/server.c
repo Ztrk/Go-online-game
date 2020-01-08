@@ -52,7 +52,7 @@ void do_move(Client *client, Server *server, int row, int column) {
     if (captured_stones[0][0] != -1) {
         int length = sprintf(captured_field, " CAPTURED %d %d", captured_stones[0][0], captured_stones[0][1]);
         for (int i = 1; captured_stones[i][0] != -1; ++i) {
-            length += sprintf(&captured_field[length], ", %d %d", captured_stones[i][0], captured_stones[i][1]);
+            length += sprintf(captured_field + length, ", %d %d", captured_stones[i][0], captured_stones[i][1]);
         }
     }
     free(captured_stones);
@@ -123,28 +123,48 @@ void *event_loop(void *thread_data) {
         Client *client = events.data.ptr;
         printf("Thread awoken, fd: %d\n", client->fd);
         if (events.events & EPOLLIN) {
-            int read_bytes = recv(client->fd, client->receive_buffer, BUFFER_SIZE - 1, MSG_DONTWAIT);
+            int length = strlen(client->receive_buffer);
+            int read_bytes = recv(client->fd, client->receive_buffer + length, BUFFER_SIZE - length - 1, MSG_DONTWAIT);
             if (read_bytes < 0) {
-                fprintf(stderr, "Receive error, errno: %d\n", errno);
+                perror("Receive error");
             }
             else if (read_bytes == 0) {
                 disconnect(client, server);
+                client = NULL;
             }
             else {
-                client->receive_buffer[read_bytes] = 0;
+                client->receive_buffer[read_bytes + length] = '\0';
                 printf("%s\n", client->receive_buffer);
-                handle_message(client, server, client->receive_buffer);
+
+                char *begin = client->receive_buffer;
+                char *next;
+                while ((next = strchr(begin, '\n')) != NULL) {
+                    handle_message(client, server, begin);
+                    begin = next + 1;
+                }
+                int i = 0;
+                for ( ; *(begin + i) != '\0'; ++i) {
+                    client->receive_buffer[i] = *(begin + i);
+                }
+                client->receive_buffer[i] = '\0';
             }
         }
-        if (events.events & EPOLLOUT) {
+        if (client != NULL && events.events & EPOLLOUT) {
             printf("Sending data, fd: %d\n", client->fd);
             printf("%s\n", client->send_buffer);
-            int send_bytes = send(client->fd, client->send_buffer, strlen(client->send_buffer), MSG_DONTWAIT);
+            int length = strlen(client->send_buffer);
+            int send_bytes = send(client->fd, client->send_buffer, length, MSG_DONTWAIT);
 
-            client->send_buffer[0] = 0;
-
-            events.events = EPOLLIN;
-            epoll_ctl(server->epoll_fd, EPOLL_CTL_MOD, client->fd, &events);
+            if (length <= send_bytes) {
+                client->send_buffer[0] = '\0';
+                events.events = EPOLLIN;
+                epoll_ctl(server->epoll_fd, EPOLL_CTL_MOD, client->fd, &events);
+            }
+            else {
+                for (int i = 0; i <= length - send_bytes; ++i) {
+                    client->send_buffer[i] = client->send_buffer[i + send_bytes];
+                }
+            }
         }
     }
 
@@ -210,6 +230,8 @@ int main(int argc, char* argv[]) {
         Client *client = malloc(sizeof(Client));
         client->fd = connection_socket_descriptor;
         client->game = NULL;
+        client->receive_buffer[0] = '\0';
+        client->send_buffer[0] = '\0';
 
         struct epoll_event events;
         events.events = EPOLLIN;
