@@ -39,9 +39,9 @@ class Client:
                 self.view.update(self.game)
         elif message.startswith("GAME CREATED"):
             if message.endswith("BLACK\n"):
-                self.game.player = Field.BLACK
+                self.create_new_game(Field.BLACK)
             else:
-                self.game.player = Field.WHITE
+                self.create_new_game(Field.WHITE)
         elif message == "INVALID MESSAGE\n":
             print("Error: client sent invalid message")
         else:
@@ -51,10 +51,12 @@ class Client:
         self.game.set_next_move(row, column)
         self.connection.send("MOVE " + str(row) + " " + str(column) + "\n")
 
-    def new_game(self):
-        self.game = Game(19, self.view)
-        self.game.player = Field.BLACK
+    def request_new_game(self):
         self.connection.send("NEW GAME\n")
+
+    def create_new_game(self, color):
+        self.game = Game(19, self.view)
+        self.game.player = color
 
     def set_connection(self, host, port):
         self.connection = Connection(host, port, self)

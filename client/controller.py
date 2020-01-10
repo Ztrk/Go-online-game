@@ -18,7 +18,7 @@ class Controller:
         self.window.show()
 
     def on_new_game_button(self):
-        self.client.new_game()
+        self.client.request_new_game()
 
     def on_settings_button(self):
         self.settings = uic.loadUi("settings.ui")
