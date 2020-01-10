@@ -17,10 +17,26 @@
    <layout class="QHBoxLayout" name="horizontalLayout">
     <item>
      <layout class="QVBoxLayout" name="verticalLayout">
+      <property name="spacing">
+       <number>6</number>
+      </property>
+      <property name="leftMargin">
+       <number>20</number>
+      </property>
+      <property name="rightMargin">
+       <number>20</number>
+      </property>
       <item>
        <widget class="QPushButton" name="new_game_button">
         <property name="text">
          <string>New Game</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pass_button">
+        <property name="text">
+         <string>Pass</string>
         </property>
        </widget>
       </item>
@@ -42,7 +58,7 @@
     </item>
     <item>
      <layout class="QGridLayout" name="gridLayout">
-      <item row="2" column="0">
+      <item row="0" column="0">
        <widget class="QGraphicsView" name="graphics_view"/>
       </item>
      </layout>

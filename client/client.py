@@ -19,7 +19,10 @@ class Client:
                 print("move", row, column)
                 self.game.move_enemy(row, column)
             elif message.startswith("MOVE OK"):
-                self.game.move_player(*self.game.next_move)
+                if self.game.next_move[0] != -1:
+                    self.game.move_player(*self.game.next_move)
+            elif message.startswith("MOVE PASS"):
+                return
             elif message.endswith("INVALID\n"):
                 print("Error: Move invalid")
                 return
@@ -50,6 +53,9 @@ class Client:
     def move(self, row, column):
         self.game.set_next_move(row, column)
         self.connection.send("MOVE " + str(row) + " " + str(column) + "\n")
+
+    def pass_turn(self):
+        self.connection.send("MOVE PASS\n")
 
     def request_new_game(self):
         self.connection.send("NEW GAME\n")
