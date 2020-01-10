@@ -8,8 +8,7 @@ class Client:
     def __init__(self, view):
         self.connection = Connection("127.0.0.1", 1234, self)
         self.view = view
-        self.game = Game(19, self.view)
-        self.game.player = Field.BLACK
+        self.game = None
 
     def handle_message(self, message):
         if message.startswith("MOVE "):
@@ -59,5 +58,5 @@ class Client:
 
     def set_connection(self, host, port):
         self.connection = Connection(host, port, self)
-        self.game = Game(19, self.view)
-        self.game.player = Field.BLACK
+        self.game = None
+        self.view.update(self.game)

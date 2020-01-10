@@ -24,16 +24,19 @@ class BoardView:
         self.black = QtGui.QPixmap("./resources/26px-Go_b.svg.png")
         self.none = QtGui.QPixmap("./resources/Go_board_diagram_image.svg.png")
         self.scene = QtWidgets.QGraphicsScene()
-        board_size = 19
-        self.board_view = [[BoardElement(self.none, i, j, controller) for j in range(board_size)]
-                                                                      for i in range(board_size)]
-        for row in self.board_view:
-            for e in row:
-                self.scene.addItem(e)
+        self.board_size = 0
+        self.board_view = []
 
         self.graphics_view.setScene(self.scene)
 
     def update(self, game_board):
+        if game_board is None:
+            self.create_board(0)
+            return
+
+        if game_board.board_size != self.board_size:
+            self.create_board(game_board.board_size)
+
         for row, row_view in zip(game_board.board, self.board_view):
             for field, field_view in zip(row, row_view):
                 if field == Field.NONE:
@@ -42,3 +45,16 @@ class BoardView:
                     field_view.setPixmap(self.white)
                 else:
                     field_view.setPixmap(self.black)
+
+    def create_board(self, board_size):
+        self.board_size = board_size
+        for row in self.board_view:
+            for item in row:
+                self.scene.removeItem(item)
+
+        self.board_view = [[BoardElement(self.none, i, j, self.controller)
+                            for j in range(board_size)] for i in range(board_size)]
+
+        for row in self.board_view:
+            for item in row:
+                self.scene.addItem(item)
