@@ -9,6 +9,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.new_game_button.clicked.connect(controller.on_new_game_button)
         self.pass_button.clicked.connect(controller.on_pass_button)
         self.settings_button.clicked.connect(controller.on_settings_button)
+        self.quit_button.clicked.connect(QtWidgets.QApplication.quit)
 
 class Controller:
     def __init__(self):
@@ -20,7 +21,7 @@ class Controller:
 
     def on_new_game_button(self):
         self.client.request_new_game()
-    
+
     def on_pass_button(self):
         self.client.pass_turn()
 

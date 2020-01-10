@@ -45,6 +45,12 @@ class Client:
                 self.create_new_game(Field.BLACK)
             else:
                 self.create_new_game(Field.WHITE)
+        elif message.startswith("WIN"):
+            print("You won")
+            self.end_game()
+        elif message.startswith("LOSE"):
+            print("You lost")
+            self.end_game()
         elif message == "INVALID MESSAGE\n":
             print("Error: client sent invalid message")
         else:
@@ -63,8 +69,11 @@ class Client:
     def create_new_game(self, color):
         self.game = Game(19, self.view)
         self.game.player = color
+    
+    def end_game(self):
+        self.game = None
+        self.view.update(self.game)
 
     def set_connection(self, host, port):
         self.connection = Connection(host, port, self)
-        self.game = None
-        self.view.update(self.game)
+        self.end_game()
