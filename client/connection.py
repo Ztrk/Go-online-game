@@ -3,6 +3,8 @@ from PyQt5 import QtCore, QtNetwork
 class Connection:
     def __init__(self, hostname, port, client):
         print("Connecting to", hostname, "at port", port)
+        self.host = hostname
+        self.port = port
         self.tcp_socket = QtNetwork.QTcpSocket()
         self.tcp_socket.readyRead.connect(self.receive)
         self.tcp_socket.connectToHost(hostname, port)

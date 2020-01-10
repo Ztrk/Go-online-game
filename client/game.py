@@ -57,6 +57,11 @@ class Client:
         self.game.player = Field.BLACK
         self.connection.send("NEW GAME\n")
 
+    def set_connection(self, host, port):
+        self.connection = Connection(host, port, self)
+        self.game = Game(19, self.view)
+        self.game.player = Field.BLACK
+
 class Game:
     """Class responsible for maintaining a game state"""
 
