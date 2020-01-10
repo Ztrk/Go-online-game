@@ -1,5 +1,5 @@
 from PyQt5 import QtWidgets, uic
-from game import Client
+from client import Client
 from board_view import BoardView
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -28,7 +28,6 @@ class Controller:
         self.settings.open()
 
     def on_settings_accepted(self):
-        print("Setting accepted")
         self.client.set_connection(self.settings.host_line_edit.text(),
                                    self.settings.port_spin_box.value())
         self.settings = None
