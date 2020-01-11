@@ -5,9 +5,10 @@ from game import Game, Field
 class Client:
     """Class responsible for maintaining client state, creating connection and game"""
 
-    def __init__(self, view):
-        self.connection = Connection("127.0.0.1", 1234, self)
-        self.view = view
+    def __init__(self, board_view, connection_view):
+        self.connection = Connection("127.0.0.1", 1234, self, connection_view)
+        self.board_view = board_view
+        self.connection_view = connection_view
         self.game = None
 
     def handle_message(self, message):
@@ -39,7 +40,7 @@ class Client:
                     row = int(row)
                     column = int(column)
                     self.game.do_move(row, column, Field.NONE)
-                self.view.update(self.game)
+                self.board_view.update(self.game)
         elif message.startswith("GAME CREATED"):
             if message.endswith("BLACK\n"):
                 self.create_new_game(Field.BLACK)
@@ -69,13 +70,13 @@ class Client:
         self.connection.send("NEW GAME\n")
 
     def create_new_game(self, color):
-        self.game = Game(19, self.view)
+        self.game = Game(19, self.board_view)
         self.game.player = color
     
     def end_game(self):
         self.game = None
-        self.view.update(self.game)
+        self.board_view.update(self.game)
 
     def set_connection(self, host, port):
-        self.connection = Connection(host, port, self)
+        self.connection = Connection(host, port, self, self.connection_view)
         self.end_game()
