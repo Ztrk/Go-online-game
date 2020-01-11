@@ -46,6 +46,7 @@ void handle_message(Client *client, Server *server, const char *message) {
     else if (client->game == NULL && client != server->waiting && strncmp(message, "NEW GAME", 8) == 0) {
         if (server->waiting == NULL) {
             server->waiting = client;
+            send_data(client, server->epoll_fd, "IN QUEUE\n");
         }
         else {
             create_game(server, server->waiting, client);

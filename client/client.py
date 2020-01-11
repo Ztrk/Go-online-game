@@ -51,6 +51,8 @@ class Client:
         elif message.startswith("LOSE"):
             print("You lost")
             self.end_game()
+        elif message.startswith("IN QUEUE"):
+            print("Waiting for other player")
         elif message == "INVALID MESSAGE\n":
             print("Error: client sent invalid message")
         else:
