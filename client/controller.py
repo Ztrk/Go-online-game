@@ -1,6 +1,7 @@
 from PyQt5 import QtWidgets, uic
 from client import Client
 from board_view import BoardView
+from game import Field
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, controller, *args, **kwargs):
@@ -13,7 +14,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.quit_button.clicked.connect(QtWidgets.QApplication.quit)
 
         self.connection_status = QtWidgets.QLabel("Not connected")
-        self.statusbar.addWidget(self.connection_status)
+        self.statusbar.addPermanentWidget(self.connection_status)
 
     def on_connected(self):
         self.connection_status.setText("Connected")
@@ -24,11 +25,33 @@ class MainWindow(QtWidgets.QMainWindow):
     def on_connection_error(self):
         self.connection_status.setText("Connection error")
 
+    def print_message(self, message):
+        self.statusbar.showMessage(message, 2000)
+
+    def on_game_state_change(self, game):
+        if game is None:
+            label = ""
+        elif game.result == Field.NONE:
+            if game.player == Field.BLACK:
+                label = "Playing as black\n"
+            else:
+                label = "Playing as white\n"
+            if game.player == game.to_move:
+                label += "Your turn"
+            else:
+                label += "Opponent's turn"
+        else:
+            if game.player == game.result:
+                label = "You won"
+            else:
+                label = "You lost"
+        self.game_state_label.setText(label)
+
 class Controller:
     def __init__(self):
         self.window = MainWindow(self)
         self.board_view = BoardView(self.window.graphics_view, self)
-        self.client = Client(self.board_view, self.window)
+        self.client = Client(self.board_view, self.window, self.window)
         self.settings = None
         self.window.show()
 

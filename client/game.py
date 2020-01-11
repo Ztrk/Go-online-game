@@ -7,26 +7,22 @@ class Game:
         self.board_size = board_size
         self.board = [[Field.NONE for i in range(board_size)] for i in range(board_size)]
         self.player = Field.NONE
-        self.next_move = (-1, -1)
+        self.to_move = Field.BLACK
+        self.result = Field.NONE
         self.view = view
         self.view.update(self)
 
-    def move_player(self, row, column):
-        self.board[row][column] = self.player
+    def move(self, row, column):
+        self.board[row][column] = self.to_move
+        self.to_move = self.to_move.other()
         self.view.update(self)
 
-    def move_enemy(self, row, column):
-        self.board[row][column] = self.player.other()
-        self.view.update(self)
+    def pass_turn(self):
+        self.to_move = self.to_move.other()
 
-    def do_move(self, row, column, new_color):
+    def set_board(self, row, column, new_color):
         self.board[row][column] = new_color
 
-    def set_next_move(self, row, column):
-        if row >= 0 and self.board[row][column] == Field.NONE:
-            self.next_move = (row, column)
-        else:
-            self.next_move = (-1, -1)
 
 class Field(Enum):
     """Enum class representing field on the board"""
